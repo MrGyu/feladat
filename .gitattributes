@@ -1,2 +1,150 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+from datetime import datetime, timedelta
+import random
+
+class Szalloda:
+    def __init__(self, nev, szobak):
+        self.nev = nev
+        self.szobak = szobak
+
+    def szoba_foglalasa(self, szobatipus_kod, szobaszam, datum=None):
+        if not datum and szobatipus_kod == "2":
+            print("Kétágyas szoba foglalásához szükséges dátum megadása.")
+            return "Sikertelen"
+        if datum:
+            if not self._ervenyes_datum(datum):
+                return "Érvénytelen dátum."
+            if datetime.strptime(datum, "%Y-%m-%d") < datetime.now():
+                return "Nem lehet a mai dátumnál korábbi időpontot foglalni."
+        
+        if szobatipus_kod == "1":
+            if szobaszam != "101":
+                return "Nincs ilyen szoba."
+        elif szobatipus_kod == "2":
+            if szobaszam not in [szoba.szobaszam for szoba in self.szobak if isinstance(szoba, KetagyasSzoba)]:
+                return "Nincs ilyen szoba."
+        else:
+            return "Nincs ilyen típusú szoba."
+        
+        for i in range(5):
+            random_szoba = random.choice([szoba for szoba in self.szobak if isinstance(szoba, KetagyasSzoba)])
+            random_datum = datetime.now() + timedelta(days=random.randint(1, 30))
+            random_datum_str = random_datum.strftime("%Y-%m-%d")
+            random_szoba.foglal(random_datum_str)
+
+        return "Sikeres"
+
+    def foglalas_lemondasa(self, szobaszam, datum):
+        if not self._ervenyes_datum(datum):
+            return "Érvénytelen dátum."
+        
+        for szoba in self.szobak:
+            if szoba.szobaszam == szobaszam:
+                if datum in szoba.foglalt_datumok:
+                    szoba.foglalt_datumok.remove(datum)
+                    return "Sikeres"
+                else:
+                    return "Sikertelen"
+
+        return "Nincs ilyen szobaszám."
+
+    def foglalasok_listazasa(self):
+        foglalasok = []
+        for szoba in self.szobak:
+            for datum in szoba.foglalt_datumok:
+                foglalasok.append({"Szoba": szoba.szobaszam, "Datum": datum})
+        return foglalasok
+
+    def _ervenyes_datum(self, datum):
+        try:
+            datetime.strptime(datum, "%Y-%m-%d")
+            return True
+        except ValueError:
+            return False
+
+class Szoba:
+    def __init__(self, szobaszam, ar):
+        self.szobaszam = szobaszam
+        self.ar = ar
+        self.foglalt_datumok = []
+
+    def foglal(self, datum):
+        if datum not in self.foglalt_datumok:
+            self.foglalt_datumok.append(datum)
+            return True
+        else:
+            return False
+
+class EgyagyasSzoba(Szoba):
+    def __init__(self, szobaszam):
+        super().__init__(szobaszam, 10000)
+
+class KetagyasSzoba(Szoba):
+    def __init__(self, szobaszam):
+        super().__init__(szobaszam, 20000)
+
+def main():
+    egyagyas_szoba = EgyagyasSzoba("101")
+    ketagyas1 = KetagyasSzoba("201")
+    ketagyas2 = KetagyasSzoba("202")
+
+    szobak = [egyagyas_szoba, ketagyas1, ketagyas2]
+
+    szalloda = Szalloda("Green Hell Hotel *****", szobak)
+    
+    print("Üdvözöljük a Green Hell Hotel-ben!")
+    print("")
+
+    for i in range(5):
+        random_szoba = random.choice([szoba for szoba in szalloda.szobak if isinstance(szoba, KetagyasSzoba)])
+        random_datum = datetime.now() + timedelta(days=random.randint(1, 30))
+        random_datum_str = random_datum.strftime("%Y-%m-%d")
+        random_szoba.foglal(random_datum_str)
+
+    while True:
+        print("\nVálasszon egy lehetőséget:")
+        print("1. Szoba foglalása")
+        print("2. Foglalás lemondása")
+        print("3. Foglalások listázása")
+        print("4. Kilépés")
+
+        valasztas = input("Válasszon: ")
+
+        if valasztas == "1":
+            print("Válasszon szobatípust:")
+            print("1. Egyágyas szoba")
+            print("2. Kétágyas szoba")
+            szobatipus_kod = input("Adja meg a foglalni kívánt szobatípus kódját: ")
+            if szobatipus_kod == "2":
+                szobaszam = input("Adja meg a kétágyas szoba számát (201 vagy 202): ")
+                datum = input("Adja meg a foglalás dátumát (ÉÉÉÉ-HH-NN): ")
+                foglalas_eredmeny = szalloda.szoba_foglalasa(szobatipus_kod, szobaszam, datum)
+            else:
+                foglalas_eredmeny = szalloda.szoba_foglalasa(szobatipus_kod, "101")
+            print(f"A foglalás eredménye: {foglalas_eredmeny}")
+
+        elif valasztas == "2":
+            print("Foglalások listája:")
+            foglalasok = szalloda.foglalasok_listazasa()
+            for i, foglalas in enumerate(foglalasok, start=1):
+                print(f"{i}. Szoba: {foglalas['Szoba']}, Dátum: {foglalas['Datum']}")
+            lemondas_sorszam = input("Adja meg a lemondani kívánt foglalás sorszámát: ")
+            if lemondas_sorszam.isdigit() and 0 < int(lemondas_sorszam) <= len(foglalasok):
+                lemondas_eredmeny = szalloda.foglalas_lemondasa(foglalasok[int(lemondas_sorszam)-1]['Szoba'], foglalasok[int(lemondas_sorszam)-1]['Datum'])
+            else:
+                lemondas_eredmeny = "Sikertelen"
+            print(f"A foglalás lemondásának eredménye: {lemondas_eredmeny}")
+
+        elif valasztas == "3":
+            print("Foglalások listája:")
+            for foglalas in szalloda.foglalasok_listazasa():
+                print(f"Szoba: {foglalas['Szoba']}, Dátum: {foglalas['Datum']}")
+
+        elif valasztas == "4":
+            print("Kilépés...")
+            break
+
+        else:
+            print("Érvénytelen választás. Kérem, válasszon újra.")
+
+if __name__ == "__main__":
+    main()
